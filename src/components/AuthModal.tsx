@@ -26,6 +26,7 @@ interface AuthModalProps {
   onAuthSuccess?: (user: UserProfile) => void;
   onUserLoggedIn?: (user: UserProfile) => void;
   adminEmails: string[];
+  isMandatory?: boolean;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -34,7 +35,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   currentUser,
   onAuthSuccess,
   onUserLoggedIn,
-  adminEmails
+  adminEmails,
+  isMandatory = false
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -130,7 +132,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div 
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4"
+      onClick={(e) => {
+        // Only allow background click to close if not mandatory
+        if (!isMandatory && e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -139,12 +149,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       >
         {/* Modal Header */}
         <div className="bg-gradient-to-r from-vet-navy-950 via-vet-navy-900 to-vet-olive-900 p-6 text-white relative">
-          <button
-            onClick={onClose}
-            className="absolute top-5 right-5 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {!isMandatory ? (
+            <button
+              onClick={onClose}
+              className="absolute top-5 right-5 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-colors cursor-pointer"
+              title="ปิดหน้าต่าง"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          ) : (
+            <div className="absolute top-5 right-5 px-2.5 py-1 rounded-full bg-white/15 border border-white/20 text-[11px] font-semibold text-amber-200 flex items-center gap-1.5 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+              <span>ระบุข้อมูลก่อนเข้าใช้งาน</span>
+            </div>
+          )}
 
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2.5 bg-vet-olive-600/30 border border-vet-olive-400/40 rounded-xl text-vet-olive-300">
@@ -153,15 +171,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-mono font-bold bg-vet-olive-500/30 text-vet-olive-200 border border-vet-olive-400/30 px-2 py-0.5 rounded-full">
-                  เข้าใช้งานสะดวกรวดเร็ว
+                  {isMandatory ? 'กรุณาระบุข้อมูลเข้าใช้งาน' : 'เข้าใช้งานสะดวกรวดเร็ว'}
                 </span>
                 <span className="text-[10px] font-bold text-emerald-300 flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  ไม่ต้องใช้รหัสผ่าน (No Log In)
+                  ไม่ต้องใช้รหัสผ่าน (No Password)
                 </span>
               </div>
               <h3 className="text-xl font-bold text-white mt-1">
-                เข้าใช้งานระบบ (ระบุ E-mail & ชื่อ-สกุล)
+                ลงชื่อเข้าใช้งานระบบ (E-mail & ชื่อ-สกุล)
               </h3>
             </div>
           </div>

@@ -63,7 +63,7 @@ import { LoanRequestModal } from './components/LoanRequestModal';
 import { LoanHistoryTab } from './components/LoanHistoryTab';
 import { AdminSettingsModal } from './components/AdminSettingsModal';
 import { AuthModal } from './components/AuthModal';
-import { Flame, LogIn, LogOut, Radio, RefreshCw } from 'lucide-react';
+import { Flame, LogIn, LogOut, Radio } from 'lucide-react';
 
 // Predefined default accounts
 const DEFAULT_USER: UserProfile = {
@@ -140,8 +140,27 @@ export default function App() {
     return currentUser.role || 'admin';
   }, [adminEmails, currentUser.email, currentUser.role]);
 
+  // Session authentication state - required every time the page is loaded/visited
+  const [isSessionAuthenticated, setIsSessionAuthenticated] = useState<boolean>(() => {
+    try {
+      const sessionAuth = sessionStorage.getItem('vet_session_signed_in');
+      return sessionAuth === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  
+  // Auth modal opens automatically on page load if user has not entered name & email for this session
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(() => {
+    try {
+      const sessionAuth = sessionStorage.getItem('vet_session_signed_in');
+      return sessionAuth !== 'true';
+    } catch {
+      return true;
+    }
+  });
   
   // Persistable equipment list state
   const [equipmentList, setEquipmentList] = useState<Equipment[]>(() => {
@@ -211,19 +230,8 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [livePopups, setLivePopups] = useState<AppNotification[]>([]);
 
-  // Real-time Cloud Synchronization status
-  const [isRealtimeConnected, setIsRealtimeConnected] = useState(true);
-  const [lastSyncedTime, setLastSyncedTime] = useState<string>(() => new Date().toLocaleTimeString('th-TH'));
-  const [isForceSyncing, setIsForceSyncing] = useState(false);
-
   // Continuous Firebase Firestore & Multi-Client Real-Time Synchronization Engine
   useEffect(() => {
-    // 0. Validate live Firestore connection
-    validateFirestoreConnection().then(connected => {
-      setIsRealtimeConnected(connected);
-      setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
-    });
-
     // 1. Initial load from local database
     const initialLoans = getStoredLoans();
     setLoans(initialLoans);
@@ -237,8 +245,6 @@ export default function App() {
       if (firestoreEquipment && firestoreEquipment.length > 0) {
         setEquipmentList(firestoreEquipment);
         localStorage.setItem('vet_equipment_list', JSON.stringify(firestoreEquipment));
-        setIsRealtimeConnected(true);
-        setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
       }
     });
 
@@ -247,8 +253,6 @@ export default function App() {
       if (firestoreLoans) {
         setLoans(firestoreLoans);
         saveLoans(firestoreLoans);
-        setIsRealtimeConnected(true);
-        setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
       }
     });
 
@@ -269,8 +273,6 @@ export default function App() {
         }
         return prev;
       });
-      setIsRealtimeConnected(true);
-      setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
     });
 
     // 6. Real-time Admin Emails Listener from Firestore
@@ -278,8 +280,6 @@ export default function App() {
       if (emails && emails.length > 0) {
         setAdminEmails(emails);
         localStorage.setItem('vet_admin_emails', JSON.stringify(emails));
-        setIsRealtimeConnected(true);
-        setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
       }
     });
 
@@ -288,8 +288,6 @@ export default function App() {
       if (firestoreNotifs && firestoreNotifs.length > 0) {
         setNotifications(firestoreNotifs);
         localStorage.setItem('vet_notifications', JSON.stringify(firestoreNotifs));
-        setIsRealtimeConnected(true);
-        setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
       }
     });
 
@@ -307,14 +305,12 @@ export default function App() {
       if (msg.type === 'LOANS_UPDATED' || msg.type === 'FULL_SYNC') {
         const latestLoans = getStoredLoans();
         setLoans(latestLoans);
-        setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
       }
       if (msg.type === 'EQUIPMENT_UPDATED' || msg.type === 'FULL_SYNC') {
         const storedEq = localStorage.getItem('vet_equipment_list');
         if (storedEq) {
           try {
             setEquipmentList(JSON.parse(storedEq));
-            setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
           } catch (e) {
             console.error('Realtime sync equipment parse error', e);
           }
@@ -332,19 +328,6 @@ export default function App() {
       unsubscribeBroadcast();
     };
   }, []);
-
-  // Manual Trigger Force Real-time Re-sync
-  const handleManualForceSync = async () => {
-    setIsForceSyncing(true);
-    forceRealtimeSync();
-    const isConn = await validateFirestoreConnection();
-    setIsRealtimeConnected(isConn);
-    setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
-    setTimeout(() => {
-      setIsForceSyncing(false);
-      showToast('ซิงค์ข้อมูลสดกับ Firebase Firestore แบบ Real-time เรียบร้อยแล้ว', 'success');
-    }, 600);
-  };
 
   // Display toast helper
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -551,6 +534,33 @@ export default function App() {
       equipmentName: newRequest.equipmentName
     };
     addNotification(notifPayload);
+  };
+
+  // Handle Auth Check-in success (both on initial page visit gate and from modal)
+  const handleAuthSuccess = (user: UserProfile) => {
+    setCurrentUser(user);
+    setIsSessionAuthenticated(true);
+    setIsAuthModalOpen(false);
+    try {
+      sessionStorage.setItem('vet_session_signed_in', 'true');
+    } catch (e) {
+      console.error('Session storage error:', e);
+    }
+    localStorage.setItem('vet_current_user', JSON.stringify(user));
+    broadcastCurrentUserUpdate(user);
+    showToast(`ยินดีต้อนรับคุณ ${user.name} (${user.email}) เข้าสู่ระบบ VetKKU`, 'success');
+  };
+
+  // Handle Logout / Switch session user
+  const handleLogoutSession = () => {
+    try {
+      sessionStorage.removeItem('vet_session_signed_in');
+    } catch (e) {
+      console.error('Session storage error:', e);
+    }
+    setIsSessionAuthenticated(false);
+    setIsAuthModalOpen(true);
+    showToast('ลงชื่อออกจากระบบแล้ว กรุณาระบุชื่อและอีเมลก่อนเข้าใช้งานใหม่', 'info');
   };
 
   // Admin Action: Handle approve request
@@ -942,97 +952,71 @@ export default function App() {
 
             {/* Right: Role Switcher & Notifications */}
             <div className="flex items-center space-x-1.5 sm:space-x-2.5 shrink-0">
-              {/* Live Real-time Cloud Sync Status Badge */}
-              <button
-                id="btn_realtime_sync_status"
-                onClick={handleManualForceSync}
-                className={`flex items-center space-x-1.5 px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-xl border transition-all cursor-pointer text-xs font-semibold shadow-2xs ${
-                  isRealtimeConnected
-                    ? 'border-emerald-200 bg-emerald-50/80 hover:bg-emerald-100/90 text-emerald-900'
-                    : 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900'
-                }`}
-                title={`สถานะการเชื่อมต่อ Firestore Real-time: ${isRealtimeConnected ? 'เชื่อมต่อสดพร้อมใช้งาน' : 'กำลังเชื่อมต่อ'} (อัปเดตล่าสุด: ${lastSyncedTime}) - คลิกเพื่อซิงค์ทันที`}
-              >
-                <div className="relative flex items-center justify-center shrink-0">
-                  <span className={`w-2 h-2 rounded-full ${isRealtimeConnected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  {isRealtimeConnected && (
-                    <span className="absolute w-3.5 h-3.5 rounded-full bg-emerald-400 opacity-60 animate-ping" />
-                  )}
-                </div>
-                <div className="text-left hidden lg:block">
-                  <div className="text-[9px] text-emerald-700 leading-none font-bold uppercase tracking-wider">Live Sync</div>
-                  <div className="text-[10px] font-extrabold text-emerald-950 flex items-center gap-1">
-                    <span>{lastSyncedTime}</span>
-                    <RefreshCw className={`w-2.5 h-2.5 text-emerald-700 ${isForceSyncing ? 'animate-spin' : ''}`} />
-                  </div>
-                </div>
-                <RefreshCw className={`lg:hidden w-3 h-3 text-emerald-700 shrink-0 ${isForceSyncing ? 'animate-spin' : ''}`} />
-              </button>
-
-              {/* User Identity (E-mail & Name) Button */}
-              <button
-                id="btn_user_identity"
-                onClick={() => setIsAuthModalOpen(true)}
-                className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border border-vet-navy-200 bg-white hover:bg-slate-50 text-slate-800 transition-all cursor-pointer text-xs font-semibold shadow-2xs"
-                title="ระบุข้อมูล E-mail และชื่อ-สกุลผู้เข้าใช้งาน (ไม่ต้องใช้รหัสผ่าน)"
-              >
-                <div className="w-5 h-5 rounded-lg bg-vet-navy-50 border border-vet-navy-200 flex items-center justify-center text-vet-navy-800 shrink-0">
-                  <UserCheck className="w-3.5 h-3.5" />
-                </div>
-                <div className="text-left hidden md:block">
-                  <div className="text-[10px] text-slate-500 leading-tight">เข้าใช้งานระบบ</div>
-                  <div className="text-[11px] font-bold text-vet-navy-950">ระบุ E-mail & ชื่อ</div>
-                </div>
-                <span className="md:hidden font-bold text-xs">ระบุตัวตน</span>
-              </button>
-
-              {/* Role & Permission Management (Visible ONLY for Administrators) */}
-              {userRole === 'admin' ? (
+              {/* User Identification Status */}
+              {!isSessionAuthenticated ? (
                 <button
-                  id="btn_role_switcher"
-                  onClick={() => setIsRoleModalOpen(true)}
-                  className="flex items-center space-x-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border border-vet-navy-300 bg-vet-navy-50/95 hover:bg-vet-navy-100 text-vet-navy-950 transition-all cursor-pointer text-xs font-medium shadow-2xs"
-                  title="เฉพาะผู้ดูแลระบบ: จัดการสิทธิ์อีเมล Admin และสิทธิ์การเข้าใช้งาน"
+                  id="btn_user_identity_login"
+                  onClick={() => setIsAuthModalOpen(true)}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 sm:py-2 rounded-xl bg-vet-navy-900 hover:bg-vet-navy-950 text-white transition-all cursor-pointer text-xs font-bold shadow-md animate-pulse"
+                  title="กรุณาระบุชื่อ-นามสกุล และอีเมลก่อนเข้าใช้งานระบบ"
                 >
-                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-white shrink-0 bg-vet-navy-800 shadow-2xs">
-                    <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  </div>
-                  <div className="text-left hidden sm:block max-w-[130px]">
-                    <div className="text-[10px] text-slate-500 truncate leading-tight">
-                      {currentUser.email}
-                    </div>
-                    <div className="font-extrabold text-slate-900 text-[11px] mt-0.5 flex items-center gap-1">
-                      <span className="truncate">จัดการสิทธิ์ Admin</span>
-                      <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
-                    </div>
-                  </div>
-                  <span className="sm:hidden font-bold text-xs">
-                    จัดการสิทธิ์
-                  </span>
+                  <LogIn className="w-3.5 h-3.5 text-amber-300" />
+                  <span>ลงชื่อเข้าใช้งาน</span>
                 </button>
               ) : (
-                /* Regular User Info Badge (Clickable to quickly change/update user info) */
-                <button
-                  id="badge_user_info"
-                  onClick={() => setIsAuthModalOpen(true)}
-                  className="flex items-center space-x-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-medium shadow-2xs cursor-pointer transition-all text-left"
-                  title={`ผู้ใช้งาน: ${currentUser.name || currentUser.email} (คลิกเพื่อเปลี่ยนชื่อ/อีเมล)`}
-                >
-                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-white shrink-0 bg-vet-olive-700 shadow-2xs">
-                    <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  </div>
-                  <div className="text-left hidden sm:block max-w-[130px]">
-                    <div className="text-[10px] text-slate-500 truncate leading-tight">
-                      {currentUser.email}
+                <>
+                  {/* Current User Badge (Clickable to edit/view details) */}
+                  <button
+                    id="btn_user_identity"
+                    onClick={() => setIsAuthModalOpen(true)}
+                    className="flex items-center space-x-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 transition-all cursor-pointer text-xs font-medium shadow-2xs text-left"
+                    title={`เข้าสู่ระบบโดย: ${currentUser.name} (${currentUser.email}) - คลิกเพื่อดูหรือแก้ไขข้อมูล`}
+                  >
+                    <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-white shrink-0 shadow-2xs ${
+                      userRole === 'admin' ? 'bg-vet-navy-900' : 'bg-vet-olive-700'
+                    }`}>
+                      {userRole === 'admin' ? (
+                        <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300" />
+                      ) : (
+                        <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      )}
                     </div>
-                    <div className="font-bold text-slate-800 text-[11px] truncate">
-                      {currentUser.name || 'ผู้ขอใช้งาน (User)'}
+                    <div className="text-left hidden sm:block max-w-[130px] md:max-w-[160px]">
+                      <div className="text-[10px] text-slate-500 truncate leading-tight flex items-center gap-1">
+                        <span className="truncate">{currentUser.email}</span>
+                      </div>
+                      <div className="font-bold text-slate-900 text-[11px] truncate">
+                        {currentUser.name || 'ผู้เข้าใช้งาน'}
+                      </div>
                     </div>
-                  </div>
-                  <span className="sm:hidden font-semibold text-xs text-slate-700">
-                    {currentUser.name ? currentUser.name.split(' ')[0] : 'ผู้ใช้'}
-                  </span>
-                </button>
+                    <span className="sm:hidden font-bold text-xs">
+                      {currentUser.name ? currentUser.name.split(' ')[0] : 'ผู้ใช้'}
+                    </span>
+                  </button>
+
+                  {/* Role & Permission Management (Visible ONLY for Administrators) */}
+                  {userRole === 'admin' && (
+                    <button
+                      id="btn_role_switcher"
+                      onClick={() => setIsRoleModalOpen(true)}
+                      className="hidden md:flex items-center space-x-1.5 px-2.5 py-1.5 sm:py-2 rounded-xl border border-vet-navy-300 bg-vet-navy-50/95 hover:bg-vet-navy-100 text-vet-navy-950 transition-all cursor-pointer text-xs font-bold shadow-2xs"
+                      title="จัดการสิทธิ์อีเมล Admin และสิทธิ์การเข้าใช้งาน"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5 text-vet-navy-800" />
+                      <span>สิทธิ์ Admin</span>
+                    </button>
+                  )}
+
+                  {/* Switch User / Logout Button */}
+                  <button
+                    id="btn_logout_session"
+                    onClick={handleLogoutSession}
+                    className="p-1.5 sm:p-2 rounded-xl border border-slate-200 bg-white hover:bg-rose-50 hover:border-rose-200 text-slate-600 hover:text-rose-700 transition-all cursor-pointer shadow-2xs"
+                    title="ลงชื่อออก / เปลี่ยนผู้ใช้งาน (ระบุชื่อและอีเมลใหม่)"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </>
               )}
 
               {/* Notification Bell */}
@@ -1410,18 +1394,18 @@ export default function App() {
       onToggleUserRole={handleToggleUserRole}
     />
 
-    {/* Firebase Email Authentication Modal */}
+    {/* Firebase Email Authentication & Identification Modal (Enforced on every page visit) */}
     <AuthModal
-      isOpen={isAuthModalOpen}
-      onClose={() => setIsAuthModalOpen(false)}
+      isOpen={isAuthModalOpen || !isSessionAuthenticated}
+      isMandatory={!isSessionAuthenticated}
+      onClose={() => {
+        if (isSessionAuthenticated) {
+          setIsAuthModalOpen(false);
+        }
+      }}
       currentUser={currentUser}
       adminEmails={adminEmails}
-      onAuthSuccess={(user) => {
-        setCurrentUser(user);
-        localStorage.setItem('vet_current_user', JSON.stringify(user));
-        broadcastCurrentUserUpdate(user);
-        showToast(`ยินดีต้อนรับคุณ ${user.name} (${user.email}) เข้าสู่ระบบ VetKKU`, 'success');
-      }}
+      onAuthSuccess={handleAuthSuccess}
     />
 
     {/* Modals & Dialogs */}
