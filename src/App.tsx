@@ -68,7 +68,7 @@ import { Flame, LogIn, LogOut, Radio } from 'lucide-react';
 // Predefined default accounts
 const DEFAULT_USER: UserProfile = {
   id: 'usr-kku-01',
-  name: 'อ.ดร. ลักษณ์ชนก บุญญานุวัตร',
+  name: 'ลักขณา ฉันทะกลาง',
   email: 'lakkch@kku.ac.th',
   role: 'admin',
   department: 'สาขาวิชาพยาธิชีววิทยา คณะสัตวแพทยศาสตร์',
@@ -118,6 +118,7 @@ export default function App() {
           if (parsed.email.toLowerCase() === 'lakkch@kku.ac.th') {
             return { 
               ...parsed, 
+              name: parsed.name && !parsed.name.includes('ลักษณ์ชนก') && !parsed.name.includes('ชัยวงศ์') ? parsed.name : 'ลักขณา ฉันทะกลาง',
               department: 'สาขาวิชาพยาธิชีววิทยา คณะสัตวแพทยศาสตร์',
               role: parsed.role || 'admin'
             };

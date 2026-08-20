@@ -85,10 +85,6 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
     onUpdateAdminEmails(updated);
   };
 
-  const handleQuickLogin = (email: string, name?: string, dept?: string, forcedRole?: UserRole) => {
-    onSwitchUserEmail(email, name, dept, forcedRole);
-  };
-
   const handleCustomLogin = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanEmail = customLoginEmail.trim().toLowerCase();
@@ -261,103 +257,10 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                     </ul>
                   </div>
 
-                  {/* Quick Preset Email Switcher */}
-                  <div className="space-y-3 pt-2 border-t border-slate-200">
-                    <h5 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-                      ทดสอบสลับเข้าใช้งานด้วยบัญชีตัวอย่าง (Quick Switch)
-                    </h5>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      {/* Preset 1: lakkch as Admin */}
-                      <button
-                        type="button"
-                        onClick={() => handleQuickLogin('lakkch@kku.ac.th', 'อ.ดร. ลักษณ์ชนก บุญญานุวัตร', 'สาขาวิชาพยาธิชีววิทยา คณะสัตวแพทยศาสตร์', 'admin')}
-                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                          currentUser.email === 'lakkch@kku.ac.th' && isAdmin
-                            ? 'bg-vet-navy-50 border-vet-navy-600 ring-1 ring-vet-navy-600 text-vet-navy-950 shadow-2xs font-semibold'
-                            : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-xs flex items-center gap-1">
-                            <Shield className="w-3.5 h-3.5 text-vet-navy-800" />
-                            <span>lakkch@kku.ac.th</span>
-                          </span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-vet-navy-100 text-vet-navy-900 border border-vet-navy-200 font-bold">
-                            โหมด Admin
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 mt-1">อ.ดร. ลักษณ์ชนก (สิทธิ์ผู้ดูแลระบบ & อนุมัติ)</p>
-                      </button>
-
-                      {/* Preset 2: lakkch as User */}
-                      <button
-                        type="button"
-                        onClick={() => handleQuickLogin('lakkch@kku.ac.th', 'อ.ดร. ลักษณ์ชนก บุญญานุวัตร', 'สาขาวิชาพยาธิชีววิทยา คณะสัตวแพทยศาสตร์', 'user')}
-                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                          currentUser.email === 'lakkch@kku.ac.th' && !isAdmin
-                            ? 'bg-vet-olive-50 border-vet-olive-600 ring-1 ring-vet-olive-600 text-vet-olive-950 shadow-2xs font-semibold'
-                            : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-xs flex items-center gap-1">
-                            <UserCheck className="w-3.5 h-3.5 text-vet-olive-700" />
-                            <span>lakkch@kku.ac.th</span>
-                          </span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-vet-olive-100 text-vet-olive-900 border border-vet-olive-200 font-bold">
-                            โหมด User
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 mt-1">อ.ดร. ลักษณ์ชนก (สาขาวิชาพยาธิชีววิทยา)</p>
-                      </button>
-
-                      {/* Preset 3: Regular user somchai */}
-                      <button
-                        type="button"
-                        onClick={() => handleQuickLogin('somchai@kku.ac.th', 'น.สพ.สมชาย ใจดี', 'โรงพยาบาลสัตว์ คณะสัตวแพทยศาสตร์', 'user')}
-                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                          currentUser.email === 'somchai@kku.ac.th'
-                            ? 'bg-vet-olive-50 border-vet-olive-600 ring-1 ring-vet-olive-600 text-vet-olive-950 shadow-2xs font-semibold'
-                            : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-xs">somchai@kku.ac.th</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-vet-olive-100 text-vet-olive-900 border border-vet-olive-200 font-bold">
-                            User
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 mt-1">น.สพ.สมชาย (โรงพยาบาลสัตว์ คณะสัตวแพทยศาสตร์)</p>
-                      </button>
-
-                      {/* Preset 4: vet_labadmin */}
-                      <button
-                        type="button"
-                        onClick={() => handleQuickLogin('vet_labadmin@kku.ac.th', 'ผู้ดูแลระบบเครื่องมือห้องปฏิบัติการ', 'ฝ่ายห้องปฏิบัติการกลาง คณะสัตวแพทยศาสตร์', 'admin')}
-                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                          currentUser.email === 'vet_labadmin@kku.ac.th'
-                            ? 'bg-vet-navy-50 border-vet-navy-600 ring-1 ring-vet-navy-600 text-vet-navy-950 shadow-2xs font-semibold'
-                            : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-xs flex items-center gap-1.5">
-                            <Shield className="w-3.5 h-3.5 text-vet-navy-800" />
-                            <span>vet_labadmin@kku.ac.th</span>
-                          </span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-vet-navy-100 text-vet-navy-900 border border-vet-navy-200 font-bold">
-                            Admin
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 mt-1">ผู้ดูแลระบบคลัง (ฝ่ายห้องปฏิบัติการกลาง)</p>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Custom Email Login Form */}
+                  {/* Custom Email Switch Form */}
                   <form onSubmit={handleCustomLogin} className="space-y-3 pt-2 border-t border-slate-200">
-                    <h5 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-                      หรือระบุอีเมลอื่นเพื่อทดสอบเข้าใช้งาน
+                    <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      สลับเข้าใช้งานด้วยอีเมล KKU อื่น
                     </h5>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>

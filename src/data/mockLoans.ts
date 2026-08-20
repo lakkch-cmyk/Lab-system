@@ -96,7 +96,7 @@ export const initialMockLoans: LoanRequest[] = [
     equipmentId: 'VET64001',
     equipmentName: 'กล้องจุลทรรศน์ชนิด 3 ตาพร้อมชุดถ่ายภาพรายละเอียดสูง 2 ล้านพิกเซล',
     equipmentCode: 'VET64001',
-    borrowerName: 'อ.ดร. ลักษณ์ชนก บุญญานุวัตร',
+    borrowerName: 'ลักขณา ฉันทะกลาง',
     borrowerDept: 'สาขาวิชาพยาธิชีววิทยา คณะสัตวแพทยศาสตร์',
     borrowerPhone: '081-234-5678',
     borrowerEmail: 'lakkch@kku.ac.th',
