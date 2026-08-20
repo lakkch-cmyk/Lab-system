@@ -1,0 +1,6 @@
+{
+  "name": "ระบบเครื่องมือห้องปฏิบัติการ",
+  "description": "ระบบเครื่องมือห้องปฏิบัติการ (VET Lab system) คณะสัตวแพทยศาสตร์ มหาวิทยาลัยขอนแก่น พร้อมระบบจำกัดสิทธิ์ User และ Admin",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

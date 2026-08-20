@@ -1,0 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Sarabun", "Prompt", "Inter", system-ui, -apple-system, sans-serif;
+  --font-display: "Prompt", "Sarabun", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-vet-navy-950: #081424;
+  --color-vet-navy-900: #0f233c;
+  --color-vet-navy-800: #173254;
+  --color-vet-navy-700: #1e416d;
+  --color-vet-navy-600: #2a558c;
+  --color-vet-navy-200: #c6d9ed;
+  --color-vet-navy-100: #e2ecf7;
+  --color-vet-navy-50: #f0f5fa;
+
+  --color-vet-olive-950: #1c2a13;
+  --color-vet-olive-900: #293d1c;
+  --color-vet-olive-800: #375226;
+  --color-vet-olive-700: #456630;
+  --color-vet-olive-600: #547b3b;
+  --color-vet-olive-500: #649147;
+  --color-vet-olive-200: #c9ddbe;
+  --color-vet-olive-100: #e2eed9;
+  --color-vet-olive-50: #f2f7ee;
+}
+
+body {
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Institutional Clean Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
