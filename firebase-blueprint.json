@@ -1,0 +1,143 @@
+{
+  "entities": {
+    "Equipment": {
+      "title": "Equipment",
+      "description": "Scientific and veterinary laboratory equipment catalog items",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Equipment ID (e.g. VET64001)" },
+        "no": { "type": "number", "description": "Sequential item number" },
+        "nameTh": { "type": "string", "description": "Equipment name in Thai" },
+        "nameEn": { "type": "string", "description": "Equipment name in English" },
+        "keyword": { "type": "string", "description": "Search keywords" },
+        "type": { "type": "string", "description": "Equipment category / type" },
+        "deptCode": { "type": "string", "description": "Department code" },
+        "deptName": { "type": "string", "description": "Department name" },
+        "fiscalYear": { "type": "number", "description": "Fiscal acquisition year" },
+        "budgetSource": { "type": "string", "description": "Budget source" },
+        "purpose": { "type": "string", "description": "Primary usage purpose" },
+        "serialNo": { "type": "string", "description": "Serial number" },
+        "quantity": { "type": "number", "description": "Available quantity" },
+        "budget": { "type": "number", "description": "Budget cost" },
+        "specs": { "type": "string", "description": "Technical specifications" },
+        "location": { "type": "string", "description": "Laboratory room / physical location" },
+        "manager": { "type": "string", "description": "Equipment custodian / manager" },
+        "phone": { "type": "string", "description": "Custodian phone number" },
+        "email": { "type": "string", "description": "Custodian email" },
+        "status": { "type": "string", "description": "Status: ปกติ, ยืมอยู่, ชำรุด, ส่งซ่อม, จัดซื้อยังไม่สมบูรณ์" },
+        "image": { "type": "string", "description": "Image identifier" }
+      },
+      "required": ["id", "nameTh", "status"]
+    },
+    "LoanRequest": {
+      "title": "Equipment Loan Requests",
+      "description": "Equipment loan requests, schedules, approvals, and post-usage evaluations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Loan request ID (e.g. REQ-123456)" },
+        "equipmentId": { "type": "string", "description": "Equipment ID (e.g. VET64001)" },
+        "equipmentName": { "type": "string", "description": "Equipment name in Thai" },
+        "equipmentCode": { "type": "string", "description": "Equipment code / serial" },
+        "borrowerName": { "type": "string", "description": "Name of applicant" },
+        "borrowerDept": { "type": "string", "description": "Applicant department" },
+        "borrowerPhone": { "type": "string", "description": "Applicant phone number" },
+        "borrowerEmail": { "type": "string", "description": "Applicant email for notification" },
+        "purpose": { "type": "string", "description": "Purpose of usage" },
+        "borrowDate": { "type": "string", "description": "Borrow start date (YYYY-MM-DD)" },
+        "returnDate": { "type": "string", "description": "Return end date (YYYY-MM-DD)" },
+        "timePeriod": { "type": "string", "description": "Daily time slot" },
+        "status": { "type": "string", "description": "Status: pending, approved, rejected, returned" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" },
+        "approvedAt": { "type": "string", "description": "Approval timestamp" },
+        "returnedAt": { "type": "string", "description": "Return timestamp" },
+        "rejectReason": { "type": "string", "description": "Reason if rejected" },
+        "conditionAfterReturn": { "type": "string", "description": "Condition evaluation after return" },
+        "userRating": { "type": "number", "description": "User 1-5 satisfaction rating" },
+        "userFeedback": { "type": "string", "description": "User evaluation comments" },
+        "approverRating": { "type": "number", "description": "Approver 1-5 evaluation rating" },
+        "approverFeedback": { "type": "string", "description": "Approver evaluation comments" },
+        "adminNotes": { "type": "string", "description": "Admin notes" }
+      },
+      "required": ["id", "equipmentId", "borrowerName", "borrowDate", "returnDate", "status"]
+    },
+    "EquipmentOverride": {
+      "title": "Equipment Status Override",
+      "description": "Dynamic equipment status updates by administrators",
+      "type": "object",
+      "properties": {
+        "equipmentId": { "type": "string", "description": "Equipment ID" },
+        "status": { "type": "string", "description": "Equipment status: ปกติ, ยืมอยู่, ชำรุด, ส่งซ่อม" },
+        "updatedAt": { "type": "string", "description": "Update timestamp" }
+      },
+      "required": ["equipmentId", "status"]
+    },
+    "AdminEmailsConfig": {
+      "title": "Admin Emails Configuration",
+      "description": "List of authorized administrator emails",
+      "type": "object",
+      "properties": {
+        "emails": { "type": "string", "description": "Array of admin email strings" },
+        "updatedAt": { "type": "string", "description": "Update timestamp" }
+      }
+    },
+    "AppNotification": {
+      "title": "System Notifications",
+      "description": "In-app and email notification records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Notification ID" },
+        "title": { "type": "string", "description": "Notification title" },
+        "message": { "type": "string", "description": "Notification message" },
+        "timestamp": { "type": "string", "description": "Notification ISO timestamp" },
+        "type": { "type": "string", "description": "Type: success, warning, info, error" },
+        "isRead": { "type": "boolean", "description": "Read status" },
+        "loanId": { "type": "string", "description": "Associated loan ID" },
+        "equipmentName": { "type": "string", "description": "Associated equipment name" }
+      },
+      "required": ["id", "title", "message", "timestamp", "type", "isRead"]
+    },
+    "UserProfile": {
+      "title": "User Profiles",
+      "description": "User account profiles and roles for VetKKU Lab system",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Firebase Auth UID / ID" },
+        "name": { "type": "string", "description": "Full name / Display name" },
+        "email": { "type": "string", "description": "Email address" },
+        "role": { "type": "string", "description": "Role: user or admin" },
+        "department": { "type": "string", "description": "Department or faculty affiliation" },
+        "phone": { "type": "string", "description": "Contact phone number" },
+        "avatarBg": { "type": "string", "description": "Avatar gradient background" },
+        "createdAt": { "type": "string", "description": "Account creation timestamp" },
+        "updatedAt": { "type": "string", "description": "Last updated timestamp" }
+      },
+      "required": ["id", "name", "email", "role"]
+    }
+  },
+  "firestore": {
+    "/equipment/{equipmentId}": {
+      "schema": "Equipment",
+      "description": "Scientific and veterinary laboratory equipment items catalog"
+    },
+    "/loans/{loanId}": {
+      "schema": "LoanRequest",
+      "description": "Equipment loan requests, approvals, and reviews"
+    },
+    "/equipment_overrides/{equipmentId}": {
+      "schema": "EquipmentOverride",
+      "description": "Dynamic equipment status updates"
+    },
+    "/admin_emails/{docId}": {
+      "schema": "AdminEmailsConfig",
+      "description": "System administrator email authorizations"
+    },
+    "/notifications/{notifId}": {
+      "schema": "AppNotification",
+      "description": "System notifications for users and administrators"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Registered user accounts and profiles"
+    }
+  }
+}

@@ -43,11 +43,13 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
   const [customLoginEmail, setCustomLoginEmail] = useState('');
   const [customLoginName, setCustomLoginName] = useState('');
   const [customLoginDept, setCustomLoginDept] = useState('');
-  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'admin_list'>('profile');
+  const [activeSubTab, setActiveSubTab] = useState<'admin_list' | 'profile'>('admin_list');
 
   if (!isOpen) return null;
 
   const isAdmin = userRole === 'admin';
+  if (!isAdmin) return null;
+
   const isEmailAdminAuthorized = adminEmails.some(
     e => e.trim().toLowerCase() === currentUser.email.trim().toLowerCase()
   );

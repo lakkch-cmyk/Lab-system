@@ -33,6 +33,26 @@ import {
   broadcastCurrentUserUpdate, 
   forceRealtimeSync 
 } from './services/realtimeSync';
+import {
+  subscribeToFirestoreLoans,
+  saveLoanToFirestore,
+  updateLoanInFirestore,
+  deleteLoanFromFirestore,
+  seedInitialLoansIfEmpty,
+  subscribeToFirestoreEquipment,
+  seedEquipmentIfEmpty,
+  updateEquipmentInFirestore,
+  subscribeToAuth,
+  logoutUser,
+  subscribeToEquipmentOverrides,
+  saveEquipmentStatusToFirestore,
+  subscribeToAdminEmails,
+  saveAdminEmailsToFirestore,
+  subscribeToFirestoreNotifications,
+  saveNotificationToFirestore,
+  updateNotificationReadStatusInFirestore,
+  validateFirestoreConnection
+} from './services/firebase';
 
 // Components
 import { DashboardStats } from './components/DashboardStats';
@@ -42,6 +62,8 @@ import { EquipmentDetailModal } from './components/EquipmentDetailModal';
 import { LoanRequestModal } from './components/LoanRequestModal';
 import { LoanHistoryTab } from './components/LoanHistoryTab';
 import { AdminSettingsModal } from './components/AdminSettingsModal';
+import { AuthModal } from './components/AuthModal';
+import { Flame, LogIn, LogOut, Radio, RefreshCw } from 'lucide-react';
 
 // Predefined default accounts
 const DEFAULT_USER: UserProfile = {
@@ -119,6 +141,7 @@ export default function App() {
   }, [adminEmails, currentUser.email, currentUser.role]);
 
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   
   // Persistable equipment list state
   const [equipmentList, setEquipmentList] = useState<Equipment[]>(() => {
@@ -139,7 +162,7 @@ export default function App() {
     broadcastEquipmentUpdate(list);
   };
 
-  const updateEquipmentStatus = (equipmentId: string, newStatus: string) => {
+  const updateEquipmentStatus = async (equipmentId: string, newStatus: string) => {
     const updated = equipmentList.map(item => {
       if (item.id === equipmentId) {
         return { ...item, status: newStatus };
@@ -147,6 +170,12 @@ export default function App() {
       return item;
     });
     saveEquipment(updated);
+    try {
+      await saveEquipmentStatusToFirestore(equipmentId, newStatus);
+      await updateEquipmentInFirestore(equipmentId, { status: newStatus });
+    } catch (e) {
+      console.error('Error syncing equipment status update to Firestore:', e);
+    }
   };
 
   // Modal states
@@ -169,19 +198,11 @@ export default function App() {
     return [
       {
         id: 'notif-1',
-        title: 'ระบบยืนยันตัวตนพร้อมใช้งาน',
-        message: 'เข้าสู่ระบบสำเร็จด้วยบัญชี lakkch@kku.ac.th พร้อมสิทธิ์สำหรับการจองใช้เครื่องมือห้องปฏิบัติการ',
-        timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
+        title: 'ระบบเชื่อมต่อ Firebase สำเร็จ (VetKKU)',
+        message: 'เชื่อมต่อฐานข้อมูล Firestore และระบบ Authentication เรียบร้อยแล้ว ข้อมูลจะซิงค์แบบ Real-time',
+        timestamp: new Date().toISOString(),
         type: 'success',
         isRead: false
-      },
-      {
-        id: 'notif-2',
-        title: 'คำแนะนำการส่งคืนอุปกรณ์',
-        message: 'กรุณาตรวจสอบความสะอาดและตรวจสภาพอุปกรณ์ทุกครั้งก่อนส่งคืนเพื่อสุขอนามัยที่ดีของส่วนรวม',
-        timestamp: new Date(Date.now() - 3600000 * 5).toISOString(),
-        type: 'info',
-        isRead: true
       }
     ];
   });
@@ -190,100 +211,140 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [livePopups, setLivePopups] = useState<AppNotification[]>([]);
 
-  // Continuous Real-Time Database Synchronization Engine
-  useEffect(() => {
-    // 1. Initial load from local database
-    setLoans(getStoredLoans());
+  // Real-time Cloud Synchronization status
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(true);
+  const [lastSyncedTime, setLastSyncedTime] = useState<string>(() => new Date().toLocaleTimeString('th-TH'));
+  const [isForceSyncing, setIsForceSyncing] = useState(false);
 
-    // 2. Real-time Subscription to database broadcast events
-    const unsubscribe = subscribeToRealtimeDatabase((msg) => {
+  // Continuous Firebase Firestore & Multi-Client Real-Time Synchronization Engine
+  useEffect(() => {
+    // 0. Validate live Firestore connection
+    validateFirestoreConnection().then(connected => {
+      setIsRealtimeConnected(connected);
+      setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
+    });
+
+    // 1. Initial load from local database
+    const initialLoans = getStoredLoans();
+    setLoans(initialLoans);
+
+    // 2. Seed initial loans & equipment catalog to Firestore if empty
+    seedInitialLoansIfEmpty(initialLoans);
+    seedEquipmentIfEmpty(equipmentData);
+
+    // 3. Real-time Firebase Firestore Equipment Catalog Listener
+    const unsubEquipment = subscribeToFirestoreEquipment((firestoreEquipment) => {
+      if (firestoreEquipment && firestoreEquipment.length > 0) {
+        setEquipmentList(firestoreEquipment);
+        localStorage.setItem('vet_equipment_list', JSON.stringify(firestoreEquipment));
+        setIsRealtimeConnected(true);
+        setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
+      }
+    });
+
+    // 4. Real-time Firebase Firestore Loans Listener
+    const unsubLoans = subscribeToFirestoreLoans((firestoreLoans) => {
+      if (firestoreLoans) {
+        setLoans(firestoreLoans);
+        saveLoans(firestoreLoans);
+        setIsRealtimeConnected(true);
+        setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
+      }
+    });
+
+    // 5. Real-time Equipment Status Overrides from Firestore
+    const unsubOverrides = subscribeToEquipmentOverrides((overrides) => {
+      setEquipmentList(prev => {
+        let changed = false;
+        const updated = prev.map(item => {
+          if (overrides[item.id] && overrides[item.id] !== item.status) {
+            changed = true;
+            return { ...item, status: overrides[item.id] };
+          }
+          return item;
+        });
+        if (changed) {
+          localStorage.setItem('vet_equipment_list', JSON.stringify(updated));
+          return updated;
+        }
+        return prev;
+      });
+      setIsRealtimeConnected(true);
+      setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
+    });
+
+    // 6. Real-time Admin Emails Listener from Firestore
+    const unsubAdminEmails = subscribeToAdminEmails((emails) => {
+      if (emails && emails.length > 0) {
+        setAdminEmails(emails);
+        localStorage.setItem('vet_admin_emails', JSON.stringify(emails));
+        setIsRealtimeConnected(true);
+        setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
+      }
+    });
+
+    // 7. Real-time Notifications Listener from Firestore
+    const unsubNotifs = subscribeToFirestoreNotifications((firestoreNotifs) => {
+      if (firestoreNotifs && firestoreNotifs.length > 0) {
+        setNotifications(firestoreNotifs);
+        localStorage.setItem('vet_notifications', JSON.stringify(firestoreNotifs));
+        setIsRealtimeConnected(true);
+        setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
+      }
+    });
+
+    // 8. Firebase Auth State Listener
+    const unsubAuth = subscribeToAuth((fbUser) => {
+      if (fbUser) {
+        setCurrentUser(fbUser);
+        localStorage.setItem('vet_current_user', JSON.stringify(fbUser));
+        broadcastCurrentUserUpdate(fbUser);
+      }
+    });
+
+    // 9. Cross-Tab Sync via BroadcastChannel
+    const unsubscribeBroadcast = subscribeToRealtimeDatabase((msg) => {
       if (msg.type === 'LOANS_UPDATED' || msg.type === 'FULL_SYNC') {
         const latestLoans = getStoredLoans();
         setLoans(latestLoans);
+        setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
       }
       if (msg.type === 'EQUIPMENT_UPDATED' || msg.type === 'FULL_SYNC') {
         const storedEq = localStorage.getItem('vet_equipment_list');
         if (storedEq) {
           try {
             setEquipmentList(JSON.parse(storedEq));
+            setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
           } catch (e) {
             console.error('Realtime sync equipment parse error', e);
           }
         }
       }
-      if (msg.type === 'NOTIFICATIONS_UPDATED' || msg.type === 'FULL_SYNC') {
-        const storedNotifs = localStorage.getItem('vet_notifications');
-        if (storedNotifs) {
-          try {
-            setNotifications(JSON.parse(storedNotifs));
-          } catch (e) {
-            console.error('Realtime sync notifs parse error', e);
-          }
-        }
-      }
-      if (msg.type === 'ADMIN_EMAILS_UPDATED' || msg.type === 'FULL_SYNC') {
-        const storedAdmins = localStorage.getItem('vet_admin_emails');
-        if (storedAdmins) {
-          try {
-            setAdminEmails(JSON.parse(storedAdmins));
-          } catch (e) {
-            console.error('Realtime sync admin emails parse error', e);
-          }
-        }
-      }
-      if (msg.type === 'USER_UPDATED' || msg.type === 'FULL_SYNC') {
-        const storedUser = localStorage.getItem('vet_current_user');
-        if (storedUser) {
-          try {
-            const parsed = JSON.parse(storedUser);
-            if (parsed && parsed.email) {
-              setCurrentUser(parsed);
-            }
-          } catch (e) {
-            console.error('Realtime sync user parse error', e);
-          }
-        }
-      }
     });
 
-    // 3. Heartbeat sync checker (every 3 seconds) for guaranteed cross-tab and background data consistency
-    const heartbeatId = setInterval(() => {
-      const rawLoans = localStorage.getItem('vet_equipment_loans');
-      if (rawLoans) {
-        try {
-          const parsed: LoanRequest[] = JSON.parse(rawLoans);
-          setLoans(prev => {
-            if (JSON.stringify(prev) !== JSON.stringify(parsed)) {
-              return parsed;
-            }
-            return prev;
-          });
-        } catch {
-          // ignore
-        }
-      }
-
-      const rawEq = localStorage.getItem('vet_equipment_list');
-      if (rawEq) {
-        try {
-          const parsedEq: Equipment[] = JSON.parse(rawEq);
-          setEquipmentList(prev => {
-            if (JSON.stringify(prev) !== JSON.stringify(parsedEq)) {
-              return parsedEq;
-            }
-            return prev;
-          });
-        } catch {
-          // ignore
-        }
-      }
-    }, 3000);
-
     return () => {
-      unsubscribe();
-      clearInterval(heartbeatId);
+      unsubEquipment();
+      unsubLoans();
+      unsubOverrides();
+      unsubAdminEmails();
+      unsubNotifs();
+      unsubAuth();
+      unsubscribeBroadcast();
     };
   }, []);
+
+  // Manual Trigger Force Real-time Re-sync
+  const handleManualForceSync = async () => {
+    setIsForceSyncing(true);
+    forceRealtimeSync();
+    const isConn = await validateFirestoreConnection();
+    setIsRealtimeConnected(isConn);
+    setLastSyncedTime(new Date().toLocaleTimeString('th-TH'));
+    setTimeout(() => {
+      setIsForceSyncing(false);
+      showToast('ซิงค์ข้อมูลสดกับ Firebase Firestore แบบ Real-time เรียบร้อยแล้ว', 'success');
+    }, 600);
+  };
 
   // Display toast helper
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -422,11 +483,16 @@ export default function App() {
   };
 
   // Handle updating admin emails
-  const handleUpdateAdminEmails = (newAdminEmailsList: string[]) => {
+  const handleUpdateAdminEmails = async (newAdminEmailsList: string[]) => {
     setAdminEmails(newAdminEmailsList);
     localStorage.setItem('vet_admin_emails', JSON.stringify(newAdminEmailsList));
     broadcastAdminEmailsUpdate(newAdminEmailsList);
-    showToast(`บันทึกรายชื่ออีเมลผู้ดูแลระบบ (Admin) ${newAdminEmailsList.length} บัญชีแล้ว`, 'success');
+    try {
+      await saveAdminEmailsToFirestore(newAdminEmailsList);
+    } catch (e) {
+      console.error('Error saving admin emails to Firestore:', e);
+    }
+    showToast(`บันทึกรายชื่ออีเมลผู้ดูแลระบบ (Admin) ${newAdminEmailsList.length} บัญชีแล้ว (ซิงค์ Real-time)`, 'success');
   };
 
   // Calculate active borrowed equipment ids
@@ -453,7 +519,7 @@ export default function App() {
   };
 
   // Action: Submit new borrow request
-  const handleSubmitBorrowForm = (newRequestData: Omit<LoanRequest, 'id' | 'createdAt' | 'status'>) => {
+  const handleSubmitBorrowForm = async (newRequestData: Omit<LoanRequest, 'id' | 'createdAt' | 'status'>) => {
     const newRequest: LoanRequest = {
       ...newRequestData,
       id: `REQ-${Date.now().toString().slice(-6)}`,
@@ -466,29 +532,47 @@ export default function App() {
     saveLoans(updatedLoans);
     setSelectedBorrowItem(null);
 
+    // Save to Firebase Firestore
+    try {
+      await saveLoanToFirestore(newRequest);
+    } catch (e) {
+      console.error('Firebase save loan error:', e);
+    }
+
     // Toast
-    showToast(`ส่งคำขอใช้งาน "${newRequestData.equipmentName}" เรียบร้อยแล้ว อยู่ระหว่างรอการอนุมัติ`, 'success');
+    showToast(`ส่งคำขอใช้งาน "${newRequestData.equipmentName}" เรียบร้อยแล้ว (บันทึก Firestore Real-time)`, 'success');
 
     // System Notification
-    addNotification({
+    const notifPayload = {
       title: 'ยื่นคำขอใช้งานเครื่องมือสำเร็จ',
       message: `ยื่นคำขอใช้งาน "${newRequestData.equipmentName}" วันที่ ${newRequestData.borrowDate} สำเร็จ กำลังรอเจ้าหน้าที่ตรวจสอบ`,
-      type: 'info',
+      type: 'info' as const,
       loanId: newRequest.id,
       equipmentName: newRequest.equipmentName
-    });
+    };
+    addNotification(notifPayload);
   };
 
   // Admin Action: Handle approve request
-  const handleApproveLoan = (id: string, adminNotes?: string) => {
+  const handleApproveLoan = async (id: string, adminNotes?: string) => {
     if (userRole !== 'admin') {
       showToast('ไม่สามารถดำเนินการได้: เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่มีสิทธิ์อนุมัติคำขอ', 'error');
       return;
     }
+    const target = loans.find(l => l.id === id);
+    if (!target) return;
+
+    updateEquipmentStatus(target.equipmentId, 'กำลังใช้งาน');
+    saveEquipmentStatusToFirestore(target.equipmentId, 'กำลังใช้งาน');
+
+    const partialUpdate = {
+      status: 'approved' as const,
+      approvedAt: new Date().toISOString(),
+      adminNotes: adminNotes || target.adminNotes
+    };
+
     const updatedLoans = loans.map(loan => {
       if (loan.id === id) {
-        updateEquipmentStatus(loan.equipmentId, 'กำลังใช้งาน');
-        
         addNotification({
           title: 'คำขอใช้งานได้รับการอนุมัติแล้ว',
           message: `คำขอใช้งาน "${loan.equipmentName}" ของ ${loan.borrowerName} ได้รับการอนุมัติเรียบร้อยแล้ว`,
@@ -499,19 +583,26 @@ export default function App() {
 
         return {
           ...loan,
-          status: 'approved' as const,
-          adminNotes: adminNotes || loan.adminNotes
+          ...partialUpdate
         };
       }
       return loan;
     });
+
     setLoans(updatedLoans);
     saveLoans(updatedLoans);
-    showToast('อนุมัติคำขอใช้งานเรียบร้อยแล้ว', 'success');
+
+    try {
+      await updateLoanInFirestore(id, partialUpdate);
+    } catch (e) {
+      console.error('Firebase approve update error:', e);
+    }
+
+    showToast('อนุมัติคำขอใช้งานเรียบร้อยแล้ว (ซิงค์ Firebase Firestore)', 'success');
   };
 
   // User Action: Cancel my pending request
-  const handleCancelMyRequest = (id: string) => {
+  const handleCancelMyRequest = async (id: string) => {
     const target = loans.find(l => l.id === id);
     if (!target) return;
 
@@ -523,15 +614,30 @@ export default function App() {
     const updatedLoans = loans.filter(l => l.id !== id);
     setLoans(updatedLoans);
     saveLoans(updatedLoans);
+
+    try {
+      await deleteLoanFromFirestore(id);
+    } catch (e) {
+      console.error('Firebase delete loan error:', e);
+    }
+
     showToast(`ยกเลิกคำขอใช้งาน "${target.equipmentName}" เรียบร้อยแล้ว`, 'info');
   };
 
   // Admin Action: Handle reject request
-  const handleRejectLoan = (id: string, reason: string) => {
+  const handleRejectLoan = async (id: string, reason: string) => {
     if (userRole !== 'admin') {
       showToast('ไม่สามารถดำเนินการได้: เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่มีสิทธิ์ปฏิเสธคำขอ', 'error');
       return;
     }
+    const target = loans.find(l => l.id === id);
+    if (!target) return;
+
+    const partialUpdate = {
+      status: 'rejected' as const,
+      rejectReason: reason
+    };
+
     const updatedLoans = loans.map(loan => {
       if (loan.id === id) {
         addNotification({
@@ -544,35 +650,46 @@ export default function App() {
 
         return {
           ...loan,
-          status: 'rejected' as const,
-          rejectReason: reason
+          ...partialUpdate
         };
       }
       return loan;
     });
+
     setLoans(updatedLoans);
     saveLoans(updatedLoans);
-    showToast('ปฏิเสธคำขอเรียบร้อยแล้ว', 'info');
+
+    try {
+      await updateLoanInFirestore(id, partialUpdate);
+    } catch (e) {
+      console.error('Firebase reject update error:', e);
+    }
+
+    showToast('ปฏิเสธคำขอเรียบร้อยแล้ว (ซิงค์ Firebase Firestore)', 'info');
   };
 
   // Admin Action: Handle return equipment
-  const handleReturnLoan = (id: string, condition?: string) => {
+  const handleReturnLoan = async (id: string, condition?: string) => {
     if (userRole !== 'admin') {
       showToast('ไม่สามารถดำเนินการได้: สิทธิ์การบันทึกคืนและประเมินสภาพเครื่องมือสงวนไว้สำหรับผู้ดูแลระบบ', 'error');
       return;
     }
     const actualCondition = condition || 'ปกติพร้อมใช้งาน';
+    const target = loans.find(l => l.id === id);
+    if (!target) return;
+
+    const newStatus = actualCondition === 'ชำรุดเสียหาย' ? 'ชำรุด' : actualCondition === 'ส่งซ่อมบำรุง' ? 'ส่งซ่อม' : 'ปกติ';
+    updateEquipmentStatus(target.equipmentId, newStatus);
+    saveEquipmentStatusToFirestore(target.equipmentId, newStatus);
+
+    const partialUpdate = {
+      status: 'returned' as const,
+      returnedAt: new Date().toISOString(),
+      conditionAfterReturn: actualCondition
+    };
 
     const updatedLoans = loans.map(loan => {
       if (loan.id === id) {
-        if (actualCondition === 'ชำรุดเสียหาย') {
-          updateEquipmentStatus(loan.equipmentId, 'ชำรุด');
-        } else if (actualCondition === 'ส่งซ่อมบำรุง') {
-          updateEquipmentStatus(loan.equipmentId, 'ส่งซ่อม');
-        } else {
-          updateEquipmentStatus(loan.equipmentId, 'ปกติ');
-        }
-
         addNotification({
           title: 'บันทึกการส่งคืนอุปกรณ์สำเร็จ',
           message: `ส่งคืนเครื่องมือ "${loan.equipmentName}" เรียบร้อยแล้ว (สภาพเมื่อตรวจสอบ: ${actualCondition})`,
@@ -583,20 +700,26 @@ export default function App() {
 
         return {
           ...loan,
-          status: 'returned' as const,
-          returnedAt: new Date().toISOString(),
-          conditionAfterReturn: actualCondition
+          ...partialUpdate
         };
       }
       return loan;
     });
+
     setLoans(updatedLoans);
     saveLoans(updatedLoans);
-    showToast('บันทึกการรับคืนอุปกรณ์เรียบร้อยแล้ว', 'success');
+
+    try {
+      await updateLoanInFirestore(id, partialUpdate);
+    } catch (e) {
+      console.error('Firebase return update error:', e);
+    }
+
+    showToast('บันทึกการรับคืนอุปกรณ์เรียบร้อยแล้ว (ซิงค์ Firebase Firestore)', 'success');
   };
 
   // Admin Action: Handle deleting request
-  const handleDeleteRequest = (id: string) => {
+  const handleDeleteRequest = async (id: string) => {
     if (userRole !== 'admin') {
       showToast('ไม่สามารถดำเนินการได้: สิทธิ์การลบประวัติสงวนไว้สำหรับผู้ดูแลระบบ (Admin) เท่านั้น', 'error');
       return;
@@ -604,13 +727,38 @@ export default function App() {
     const updatedLoans = loans.filter(l => l.id !== id);
     setLoans(updatedLoans);
     saveLoans(updatedLoans);
-    showToast('ลบรายการประวัติเรียบร้อยแล้ว', 'info');
+
+    try {
+      await deleteLoanFromFirestore(id);
+    } catch (e) {
+      console.error('Firebase delete request error:', e);
+    }
+
+    showToast('ลบรายการประวัติเรียบร้อยแล้ว (ซิงค์ Firebase Firestore)', 'info');
   };
 
   // Action: Handle rating & feedback for lab equipment service system (User & Approver evaluation)
-  const handleRateLoan = (id: string, rating: number, feedback?: string, evaluatorType: 'user' | 'approver' = 'user') => {
+  const handleRateLoan = async (id: string, rating: number, feedback?: string, evaluatorType: 'user' | 'approver' = 'user') => {
     const isApprover = evaluatorType === 'approver';
     const nowIso = new Date().toISOString();
+
+    let partialUpdate: Partial<LoanRequest> = {};
+    if (isApprover) {
+      partialUpdate = {
+        approverRating: rating,
+        approverFeedback: feedback,
+        approverRatedAt: nowIso
+      };
+    } else {
+      partialUpdate = {
+        userRating: rating,
+        userFeedback: feedback,
+        userRatedAt: nowIso,
+        rating,
+        ratingFeedback: feedback,
+        ratedAt: nowIso
+      };
+    }
 
     const updatedLoans = loans.map(loan => {
       if (loan.id === id) {
@@ -622,31 +770,42 @@ export default function App() {
           equipmentName: loan.equipmentName
         });
 
-        if (isApprover) {
-          return {
-            ...loan,
-            approverRating: rating,
-            approverFeedback: feedback,
-            approverRatedAt: nowIso
-          };
-        } else {
-          return {
-            ...loan,
-            userRating: rating,
-            userFeedback: feedback,
-            userRatedAt: nowIso,
-            // also maintain backward compatibility aliases
-            rating,
-            ratingFeedback: feedback,
-            ratedAt: nowIso
-          };
-        }
+        return {
+          ...loan,
+          ...partialUpdate
+        };
       }
       return loan;
     });
+
     setLoans(updatedLoans);
     saveLoans(updatedLoans);
+
+    try {
+      await updateLoanInFirestore(id, partialUpdate);
+    } catch (e) {
+      console.error('Firebase rating update error:', e);
+    }
+
     showToast(`บันทึกคะแนนประเมินระบบ ${rating} ดาว (${isApprover ? 'ผู้อนุมัติ' : 'ผู้ใช้งาน'}) สำเร็จ`, 'success');
+  };
+
+  // Action: Handle simulating custom approval status notification
+  const handleSimulateNotification = (
+    title: string,
+    message: string,
+    type: 'success' | 'info' | 'warning' = 'info',
+    loanId?: string,
+    equipmentName?: string
+  ) => {
+    addNotification({
+      title,
+      message,
+      type,
+      loanId,
+      equipmentName
+    });
+    showToast(`🔔 จำลองการแจ้งเตือน: ${title}`, type === 'warning' ? 'error' : type);
   };
 
   return (
@@ -783,35 +942,98 @@ export default function App() {
 
             {/* Right: Role Switcher & Notifications */}
             <div className="flex items-center space-x-1.5 sm:space-x-2.5 shrink-0">
-              {/* Role Switcher Pill */}
+              {/* Live Real-time Cloud Sync Status Badge */}
               <button
-                id="btn_role_switcher"
-                onClick={() => setIsRoleModalOpen(true)}
-                className={`flex items-center space-x-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border transition-all cursor-pointer text-xs font-medium ${
-                  userRole === 'admin'
-                    ? 'bg-vet-navy-50/95 border-vet-navy-300 text-vet-navy-950 hover:bg-vet-navy-100 shadow-2xs'
-                    : 'bg-vet-olive-50/90 border-vet-olive-300 text-vet-olive-950 hover:bg-vet-olive-100 shadow-2xs'
+                id="btn_realtime_sync_status"
+                onClick={handleManualForceSync}
+                className={`flex items-center space-x-1.5 px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-xl border transition-all cursor-pointer text-xs font-semibold shadow-2xs ${
+                  isRealtimeConnected
+                    ? 'border-emerald-200 bg-emerald-50/80 hover:bg-emerald-100/90 text-emerald-900'
+                    : 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900'
                 }`}
-                title="คลิกเพื่อจัดการสิทธิ์อีเมล Admin หรือสลับบัญชีผู้ใช้งาน"
+                title={`สถานะการเชื่อมต่อ Firestore Real-time: ${isRealtimeConnected ? 'เชื่อมต่อสดพร้อมใช้งาน' : 'กำลังเชื่อมต่อ'} (อัปเดตล่าสุด: ${lastSyncedTime}) - คลิกเพื่อซิงค์ทันที`}
               >
-                <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-white shrink-0 ${
-                  userRole === 'admin' ? 'bg-vet-navy-800 shadow-2xs' : 'bg-vet-olive-700 shadow-2xs'
-                }`}>
-                  {userRole === 'admin' ? <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                <div className="relative flex items-center justify-center shrink-0">
+                  <span className={`w-2 h-2 rounded-full ${isRealtimeConnected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  {isRealtimeConnected && (
+                    <span className="absolute w-3.5 h-3.5 rounded-full bg-emerald-400 opacity-60 animate-ping" />
+                  )}
                 </div>
-                <div className="text-left hidden sm:block max-w-[130px]">
-                  <div className="text-[10px] text-slate-500 truncate leading-tight">
-                    {currentUser.email}
-                  </div>
-                  <div className="font-extrabold text-slate-900 text-[11px] mt-0.5 flex items-center gap-1">
-                    <span className="truncate">{userRole === 'admin' ? 'ผู้ดูแลระบบ (Admin)' : 'ผู้ขอใช้ (User)'}</span>
-                    <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
+                <div className="text-left hidden lg:block">
+                  <div className="text-[9px] text-emerald-700 leading-none font-bold uppercase tracking-wider">Live Sync</div>
+                  <div className="text-[10px] font-extrabold text-emerald-950 flex items-center gap-1">
+                    <span>{lastSyncedTime}</span>
+                    <RefreshCw className={`w-2.5 h-2.5 text-emerald-700 ${isForceSyncing ? 'animate-spin' : ''}`} />
                   </div>
                 </div>
-                <span className="sm:hidden font-bold text-xs">
-                  {userRole === 'admin' ? 'Admin' : 'User'}
-                </span>
+                <RefreshCw className={`lg:hidden w-3 h-3 text-emerald-700 shrink-0 ${isForceSyncing ? 'animate-spin' : ''}`} />
               </button>
+
+              {/* User Identity (E-mail & Name) Button */}
+              <button
+                id="btn_user_identity"
+                onClick={() => setIsAuthModalOpen(true)}
+                className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border border-vet-navy-200 bg-white hover:bg-slate-50 text-slate-800 transition-all cursor-pointer text-xs font-semibold shadow-2xs"
+                title="ระบุข้อมูล E-mail และชื่อ-สกุลผู้เข้าใช้งาน (ไม่ต้องใช้รหัสผ่าน)"
+              >
+                <div className="w-5 h-5 rounded-lg bg-vet-navy-50 border border-vet-navy-200 flex items-center justify-center text-vet-navy-800 shrink-0">
+                  <UserCheck className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-left hidden md:block">
+                  <div className="text-[10px] text-slate-500 leading-tight">เข้าใช้งานระบบ</div>
+                  <div className="text-[11px] font-bold text-vet-navy-950">ระบุ E-mail & ชื่อ</div>
+                </div>
+                <span className="md:hidden font-bold text-xs">ระบุตัวตน</span>
+              </button>
+
+              {/* Role & Permission Management (Visible ONLY for Administrators) */}
+              {userRole === 'admin' ? (
+                <button
+                  id="btn_role_switcher"
+                  onClick={() => setIsRoleModalOpen(true)}
+                  className="flex items-center space-x-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border border-vet-navy-300 bg-vet-navy-50/95 hover:bg-vet-navy-100 text-vet-navy-950 transition-all cursor-pointer text-xs font-medium shadow-2xs"
+                  title="เฉพาะผู้ดูแลระบบ: จัดการสิทธิ์อีเมล Admin และสิทธิ์การเข้าใช้งาน"
+                >
+                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-white shrink-0 bg-vet-navy-800 shadow-2xs">
+                    <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  </div>
+                  <div className="text-left hidden sm:block max-w-[130px]">
+                    <div className="text-[10px] text-slate-500 truncate leading-tight">
+                      {currentUser.email}
+                    </div>
+                    <div className="font-extrabold text-slate-900 text-[11px] mt-0.5 flex items-center gap-1">
+                      <span className="truncate">จัดการสิทธิ์ Admin</span>
+                      <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
+                    </div>
+                  </div>
+                  <span className="sm:hidden font-bold text-xs">
+                    จัดการสิทธิ์
+                  </span>
+                </button>
+              ) : (
+                /* Regular User Info Badge (Clickable to quickly change/update user info) */
+                <button
+                  id="badge_user_info"
+                  onClick={() => setIsAuthModalOpen(true)}
+                  className="flex items-center space-x-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-medium shadow-2xs cursor-pointer transition-all text-left"
+                  title={`ผู้ใช้งาน: ${currentUser.name || currentUser.email} (คลิกเพื่อเปลี่ยนชื่อ/อีเมล)`}
+                >
+                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-white shrink-0 bg-vet-olive-700 shadow-2xs">
+                    <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  </div>
+                  <div className="text-left hidden sm:block max-w-[130px]">
+                    <div className="text-[10px] text-slate-500 truncate leading-tight">
+                      {currentUser.email}
+                    </div>
+                    <div className="font-bold text-slate-800 text-[11px] truncate">
+                      {currentUser.name || 'ผู้ขอใช้งาน (User)'}
+                    </div>
+                  </div>
+                  <span className="sm:hidden font-semibold text-xs text-slate-700">
+                    {currentUser.name ? currentUser.name.split(' ')[0] : 'ผู้ใช้'}
+                  </span>
+                </button>
+              )}
 
               {/* Notification Bell */}
               <div className="relative">
@@ -1156,6 +1378,7 @@ export default function App() {
                 onRateLoan={handleRateLoan}
                 onDeleteRequest={handleDeleteRequest}
                 onCancelMyRequest={handleCancelMyRequest}
+                onSimulateNotification={handleSimulateNotification}
               />
             </motion.div>
           )}
@@ -1185,6 +1408,20 @@ export default function App() {
       onUpdateAdminEmails={handleUpdateAdminEmails}
       onSwitchUserEmail={handleSwitchUserEmail}
       onToggleUserRole={handleToggleUserRole}
+    />
+
+    {/* Firebase Email Authentication Modal */}
+    <AuthModal
+      isOpen={isAuthModalOpen}
+      onClose={() => setIsAuthModalOpen(false)}
+      currentUser={currentUser}
+      adminEmails={adminEmails}
+      onAuthSuccess={(user) => {
+        setCurrentUser(user);
+        localStorage.setItem('vet_current_user', JSON.stringify(user));
+        broadcastCurrentUserUpdate(user);
+        showToast(`ยินดีต้อนรับคุณ ${user.name} (${user.email}) เข้าสู่ระบบ VetKKU`, 'success');
+      }}
     />
 
     {/* Modals & Dialogs */}

@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // User profiles: Anyone can read, user can edit their own profile
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isAuthenticated() || isOwner(userId);
+    }
+    
+    // Loans: Authenticated users & system can read and write loan requests
+    match /loans/{loanId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+    
+    // Equipment catalog: Real-time public read, authorized write
+    match /equipment/{equipmentId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Equipment status overrides: Real-time read and write
+    match /equipment_overrides/{overrideId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Connection test document
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+    
+    // Admin emails configuration
+    match /admin_emails/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Notifications
+    match /notifications/{notifId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

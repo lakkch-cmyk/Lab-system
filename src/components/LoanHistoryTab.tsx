@@ -34,17 +34,25 @@ import {
 } from 'lucide-react';
 import { LoanRequest, UserRole, UserProfile } from '../types';
 import { RatingFeedbackModal } from './RatingFeedbackModal';
+import { LatestStatusTracker } from './LatestStatusTracker';
 
 interface LoanHistoryTabProps {
   loans: LoanRequest[];
   currentUserRole?: UserRole;
   currentUser?: UserProfile;
-  onApprove: (id: string) => void;
+  onApprove: (id: string, notes?: string) => void;
   onReject: (id: string, reason?: string) => void;
   onReturn: (id: string, condition?: string) => void;
   onRateLoan?: (id: string, rating: number, feedback?: string, evaluatorType?: 'user' | 'approver') => void;
   onDeleteRequest?: (id: string) => void;
   onCancelMyRequest?: (id: string) => void;
+  onSimulateNotification?: (
+    title: string,
+    message: string,
+    type: 'success' | 'info' | 'warning',
+    loanId?: string,
+    equipmentName?: string
+  ) => void;
 }
 
 export const LoanHistoryTab: React.FC<LoanHistoryTabProps> = ({ 
@@ -56,7 +64,8 @@ export const LoanHistoryTab: React.FC<LoanHistoryTabProps> = ({
   onReturn,
   onRateLoan,
   onDeleteRequest,
-  onCancelMyRequest
+  onCancelMyRequest,
+  onSimulateNotification
 }) => {
   const isAdmin = currentUserRole === 'admin';
   const [activeSubTab, setActiveSubTab] = useState<'all' | 'pending' | 'approved' | 'history'>('all');
@@ -491,6 +500,21 @@ export const LoanHistoryTab: React.FC<LoanHistoryTabProps> = ({
         </div>
       )}
 
+      {/* LATEST STATUS TRACKER & NOTIFICATION SIMULATOR HERO SECTION */}
+      {accessibleLoans.length > 0 && onSimulateNotification && (
+        <LatestStatusTracker
+          loans={accessibleLoans}
+          currentUser={currentUser}
+          isAdmin={isAdmin}
+          onSimulateNotification={onSimulateNotification}
+          onApprove={onApprove}
+          onReject={onReject}
+          onReturn={onReturn}
+          onRateLoan={onRateLoan}
+          onCancelMyRequest={onCancelMyRequest}
+        />
+      )}
+
       {/* Sub-Tabs & Filtering Controls */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs">
         {/* Status Filter Pills */}
@@ -600,6 +624,7 @@ export const LoanHistoryTab: React.FC<LoanHistoryTabProps> = ({
                     loan.borrowerEmail?.toLowerCase() === currentUser.email?.toLowerCase() ||
                     loan.borrowerName?.toLowerCase() === currentUser.name?.toLowerCase()
                   );
+                  const isLatestRequest = accessibleLoans[0]?.id === loan.id;
 
                   const userRatingVal = loan.userRating || loan.rating;
                   const userFeedbackVal = loan.userFeedback || loan.ratingFeedback;
@@ -611,6 +636,12 @@ export const LoanHistoryTab: React.FC<LoanHistoryTabProps> = ({
                         <td className="py-3.5 pl-4 pr-3 sm:pl-5 sm:pr-4 align-top">
                           <div className="flex flex-col items-start gap-1.5">
                             {getStatusBadge(loan.status)}
+                            {isLatestRequest && (
+                              <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-extrabold px-2 py-0.5 rounded-full shadow-2xs">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                                สถานะล่าสุด
+                              </span>
+                            )}
                             <span className="text-[10px] text-slate-500">
                               ยื่น: {formatDate(loan.createdAt)}
                             </span>
@@ -1033,6 +1064,12 @@ export const LoanHistoryTab: React.FC<LoanHistoryTabProps> = ({
                       )}
                     </div>
                     <div className="flex items-center space-x-2 shrink-0">
+                      {accessibleLoans[0]?.id === loan.id && (
+                        <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shadow-2xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                          สถานะล่าสุด
+                        </span>
+                      )}
                       <span className="text-slate-500 text-[10px] hidden sm:inline">
                         ยื่นคำขอเมื่อ {formatDate(loan.createdAt)}
                       </span>
