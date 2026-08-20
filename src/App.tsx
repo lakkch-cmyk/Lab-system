@@ -18,8 +18,28 @@ import {
   UserCheck,
   ChevronDown,
   Menu,
-  Sparkle
+  Sparkle,
+  Cpu,
+  Activity,
+  Zap,
+  Layers,
+  Radio,
+  Globe,
+  Shield,
+  ArrowRight,
+  CheckCircle,
+  Database,
+  Server,
+  LogIn,
+  LogOut,
+  Microscope,
+  Dna,
+  Binary
 } from 'lucide-react';
+
+// High-Tech Futuristic Images
+import heroLabImg from './assets/images/futuristic_vet_lab_hero_1787238459981.jpg';
+import smartTechImg from './assets/images/smart_vet_tech_equipment_1787238474368.jpg';
 
 // Data & Types
 import { equipmentData, Equipment } from './data/equipment';
@@ -63,7 +83,6 @@ import { LoanRequestModal } from './components/LoanRequestModal';
 import { LoanHistoryTab } from './components/LoanHistoryTab';
 import { AdminSettingsModal } from './components/AdminSettingsModal';
 import { AuthModal } from './components/AuthModal';
-import { Flame, LogIn, LogOut, Radio } from 'lucide-react';
 
 // Predefined default accounts
 const DEFAULT_USER: UserProfile = {
@@ -163,6 +182,17 @@ export default function App() {
     }
   });
   
+  // Hero banner futuristic image view index (0: Smart Lab, 1: Diagnostic Tech, 2: Faculty Building)
+  const [heroImageIdx, setHeroImageIdx] = useState<number>(0);
+
+  // Auto-slide hero images continuously every 3.5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHeroImageIdx((prev) => (prev + 1) % 3);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, []);
+
   // Persistable equipment list state
   const [equipmentList, setEquipmentList] = useState<Equipment[]>(() => {
     const stored = localStorage.getItem('vet_equipment_list');
@@ -1248,44 +1278,97 @@ export default function App() {
               transition={{ duration: 0.2 }}
               className="space-y-8"
             >
-              {/* Welcome Hero Banner */}
-              <div className="relative overflow-hidden rounded-2xl border border-vet-navy-200/90 bg-white p-6 sm:p-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shadow-xs">
-                {/* Left: Info Text */}
-                <div className="flex-1 space-y-3 sm:space-y-4 relative z-10 text-left">
-                  <div className="inline-flex items-center space-x-2 bg-vet-olive-50 border border-vet-olive-200 px-3 py-1 rounded-full">
-                    <Sparkles className="w-3.5 h-3.5 text-vet-olive-700" />
-                    <span className="text-[10px] sm:text-xs font-bold text-vet-olive-900">ต้อนรับสู่ระบบเครื่องมือห้องปฏิบัติการ (VET Lab system)</span>
-                  </div>
-                  <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 leading-tight tracking-tight">
-                    บริการเครื่องมือวิจัยและเครื่องมือห้องปฏิบัติการประสิทธิภาพสูง
-                  </h2>
-                  <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
-                    สนับสนุนการเรียนการสอน การวิจัย และการบริการวิชาการของคณาจารย์ บุคลากร และนักศึกษา คณะสัตวแพทยศาสตร์ มหาวิทยาลัยขอนแก่น
-                  </p>
-                  <div className="flex flex-wrap gap-2.5 pt-2">
-                    <button 
-                      onClick={() => setActiveTab('equipment')}
-                      className="px-5 py-2.5 rounded-xl bg-vet-olive-700 hover:bg-vet-olive-800 text-white font-bold text-xs sm:text-sm transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
-                    >
-                      <span>เริ่มค้นหาเครื่องมือ & ดูผังปฏิทิน</span> &rarr;
-                    </button>
-                  </div>
-                </div>
+              {/* Welcome Hero Banner with Modern Futuristic Visuals & Colors */}
+              <div className="relative overflow-hidden rounded-3xl border border-slate-800/80 bg-gradient-to-br from-[#071322] via-[#0c1f38] to-[#060f1b] p-6 sm:p-8 lg:p-10 shadow-2xl text-white">
+                {/* Futuristic Ambient Glow & Grid Accents */}
+                <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+                <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20" />
+                <div className="absolute inset-0 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:24px_24px] opacity-10 pointer-events-none" />
 
-                {/* Right: Faculty Building Image */}
-                <div className="w-full md:w-[360px] lg:w-[460px] shrink-0 aspect-[16/10] rounded-xl overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center relative shadow-xs z-10">
-                  <img 
-                    src="https://lh3.googleusercontent.com/d/1cE0Z4lgKnkZF-oWfKFsO9hBfEv7P_Aux" 
-                    alt="คณะสัตวแพทยศาสตร์ มหาวิทยาลัยขอนแก่น" 
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.onerror = null; 
-                      e.currentTarget.src = "https://images.unsplash.com/photo-1579154204601-01588f351167?q=80&w=1470&auto=format&fit=crop";
-                    }}
-                  />
-                  <div className="absolute bottom-2.5 right-2.5 bg-vet-navy-950/90 text-vet-olive-200 backdrop-blur-xs px-2.5 py-1 rounded-md border border-vet-navy-700 text-[10px] font-mono font-bold shadow-2xs">
-                    KKU VET Lab system
+                <div className="relative z-10 flex flex-col lg:flex-row items-center gap-8 lg:gap-10">
+                  {/* Left: Info Text */}
+                  <div className="flex-1 space-y-4 sm:space-y-5 text-left w-full">
+                    <div className="inline-flex items-center space-x-2 bg-vet-olive-900/60 border border-vet-olive-500/40 px-3.5 py-1.5 rounded-full backdrop-blur-md shadow-xs">
+                      <Sparkles className="w-3.5 h-3.5 text-vet-olive-400" />
+                      <span className="text-[10px] sm:text-xs font-bold text-vet-olive-200">
+                        ต้อนรับสู่ระบบเครื่องมือห้องปฏิบัติการ (VET Lab system)
+                      </span>
+                    </div>
+
+                    {/* Headline */}
+                    <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold text-white leading-tight tracking-tight">
+                      บริการเครื่องมือวิจัยและเครื่องมือห้องปฏิบัติการประสิทธิภาพสูง
+                    </h2>
+
+                    {/* Description */}
+                    <p className="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-2xl font-light">
+                      สนับสนุนการเรียนการสอน การวิจัย และการบริการวิชาการของคณาจารย์ บุคลากร และนักศึกษา คณะสัตวแพทยศาสตร์ มหาวิทยาลัยขอนแก่น
+                    </p>
+
+                    {/* Action Button */}
+                    <div className="flex flex-wrap items-center gap-3 pt-2">
+                      <button 
+                        onClick={() => setActiveTab('equipment')}
+                        className="px-6 py-3 rounded-xl bg-gradient-to-r from-vet-olive-600 via-vet-olive-700 to-emerald-700 hover:from-vet-olive-500 hover:to-emerald-600 text-white font-bold text-xs sm:text-sm transition-all shadow-lg shadow-vet-olive-950/40 hover:shadow-xl hover:scale-[1.02] cursor-pointer flex items-center gap-2 border border-emerald-400/30"
+                      >
+                        <span>เริ่มค้นหาเครื่องมือ & ดูผังปฏิทิน</span>
+                        <ArrowRight className="w-4 h-4 ml-0.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Right: Modern Futuristic Auto-Sliding Image Showcase */}
+                  <div className="w-full lg:w-[480px] shrink-0">
+                    <div className="relative aspect-[16/10] rounded-2xl overflow-hidden border border-slate-700/80 bg-slate-900 shadow-2xl group">
+                      {/* Image Render with Smooth Transition */}
+                      {[
+                        heroLabImg,
+                        smartTechImg,
+                        'https://lh3.googleusercontent.com/d/1cE0Z4lgKnkZF-oWfKFsO9hBfEv7P_Aux'
+                      ].map((imgSrc, idx) => (
+                        <img 
+                          key={idx}
+                          src={imgSrc} 
+                          alt="KKU Veterinary Modern Laboratory" 
+                          referrerPolicy="no-referrer"
+                          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
+                            heroImageIdx === idx ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'
+                          }`}
+                          onError={(e) => {
+                            e.currentTarget.onerror = null; 
+                            e.currentTarget.src = heroLabImg;
+                          }}
+                        />
+                      ))}
+
+                      {/* Sci-Fi Overlay Grid & Scanline */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#060f1b]/90 via-transparent to-black/20 pointer-events-none" />
+
+                      {/* Slide Indicator Dots (Auto-sliding) */}
+                      <div className="absolute bottom-3.5 left-4 z-10 flex items-center space-x-2">
+                        {[0, 1, 2].map((idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setHeroImageIdx(idx)}
+                            aria-label={`Slide ${idx + 1}`}
+                            className={`h-1.5 rounded-full transition-all duration-500 cursor-pointer ${
+                              heroImageIdx === idx 
+                                ? 'w-6 bg-cyan-400 shadow-xs shadow-cyan-400/50' 
+                                : 'w-2 bg-white/40 hover:bg-white/70'
+                            }`}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Badge Overlay */}
+                      <div className="absolute bottom-3 right-3 z-10">
+                        <div className="bg-vet-navy-950/90 text-cyan-300 backdrop-blur-md px-3 py-1.5 rounded-xl border border-cyan-500/30 text-xs font-mono font-bold shadow-lg flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                          <span>KKU VET Lab system</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1370,15 +1453,15 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      {/* Footer inside content area */}
-      <footer className="bg-white border-t border-slate-200 mt-auto py-8 text-center text-xs text-slate-500 font-sans">
-        <div className="max-w-7xl mx-auto px-4 space-y-2">
-          <p className="font-medium text-slate-700">ระบบสารสนเทศเครื่องมือห้องปฏิบัติการ (VET Lab system) คณะสัตวแพทยศาสตร์ มหาวิทยาลัยขอนแก่น</p>
-          <div className="inline-flex items-center justify-center gap-1.5 px-3 py-1 bg-vet-navy-50 border border-vet-navy-200 rounded-full text-slate-700 font-medium text-xs shadow-2xs">
+      {/* Footer inside content area with Modern Aesthetic */}
+      <footer className="bg-gradient-to-b from-slate-900 to-[#071322] border-t border-slate-800 text-slate-400 mt-auto py-8 text-center text-xs font-sans">
+        <div className="max-w-7xl mx-auto px-4 space-y-3">
+          <p className="font-medium text-slate-200">ระบบสารสนเทศเครื่องมือห้องปฏิบัติการ (VET Lab system) คณะสัตวแพทยศาสตร์ มหาวิทยาลัยขอนแก่น</p>
+          <div className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1 bg-slate-800/80 border border-slate-700/80 rounded-full text-slate-300 font-medium text-xs shadow-xs">
             <span>ผู้พัฒนาระบบ :</span>
-            <span className="font-bold text-vet-navy-900">นางสาวลักขณา ฉันทะกลาง</span>
+            <span className="font-bold text-cyan-300">นางสาวลักขณา ฉันทะกลาง</span>
           </div>
-          <p className="text-slate-400 text-[11px]">© {new Date().getFullYear()} Faculty of Veterinary Medicine, Khon Kaen University. All rights reserved.</p>
+          <p className="text-slate-500 text-[11px]">© {new Date().getFullYear()} Faculty of Veterinary Medicine, Khon Kaen University. All rights reserved.</p>
         </div>
       </footer>
     </div>
